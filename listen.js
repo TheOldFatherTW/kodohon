@@ -10,7 +10,6 @@
   const nextBtn = document.getElementById("nextBtn");
   const menu = document.getElementById("readerSettingsMenu");
   const catcher = document.getElementById("readerSettingsCatch");
-  const configMask = document.getElementById("configMask");
   let currentId = q.get("id") || "";
   let userStarted = false;
 
@@ -83,25 +82,6 @@
     this.setAttribute("aria-expanded", open ? "true" : "false");
   });
   if (catcher) catcher.addEventListener("click", closeMenu);
-  document.getElementById("openQueue").addEventListener("click", function () {
-    closeMenu();
-    configMask.hidden = false;
-  });
-  document.getElementById("closeMenu").addEventListener("click", function () {
-    configMask.hidden = true;
-  });
-  document.getElementById("savePlay").addEventListener("click", async function () {
-    const shuffle = document.getElementById("shuffleSwitch").checked;
-    const loop = document.getElementById("loopSwitch").checked;
-    const night = await window.FamiGate.api("/api/night", key, { timeout: 8000 });
-    const picks = (night.j && night.j.night && night.j.night.picks) || [];
-    await window.FamiGate.api("/api/night", key, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ picks: picks, shuffle: shuffle, loop: loop }),
-    });
-    configMask.hidden = true;
-  });
   playBtn.addEventListener("click", function () {
     if (player.paused) {
       userStarted = true;

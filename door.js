@@ -25,6 +25,13 @@
   const CAMERA = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="8" width="17" height="11.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 8l1.4-2.4h5.2L16 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13.6" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>';
   const SCENE = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M5.5 16.2l4.2-4.6 3 3.2 2.2-2.4 3.6 3.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="9" cy="9.2" r="1.3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
   const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20C10.5 18.4 7.3 15.8 5.4 11.9C4 9.1 5.2 6 8.4 6c1.8 0 3 1.1 3.6 2.2C12.6 7.1 13.8 6 15.6 6c3.2 0 4.4 3.1 3 5.9C16.7 15.8 13.5 18.4 12 20Z"/></svg>';
+  const MAG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.2 15.2L20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  const PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6l12 6-12 6z" fill="currentColor"/></svg>';
+  const PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h3v12H8zM13 6h3v12h-3z" fill="currentColor"/></svg>';
+  const TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8V6.8A1.8 1.8 0 0 1 9.8 5h4.4A1.8 1.8 0 0 1 16 6.8V8M5 8h14M9 11v7M12 11v7M15 11v7M7 8l.8 12.2A1.6 1.6 0 0 0 9.4 22h5.2a1.6 1.6 0 0 0 1.6-1.8L17 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const SHUFFLE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h4.2l7.6 10H20M16.5 7H20M4 17h4.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.2 4.8L20 7l-3.8 2.2M16.2 14.8L20 17l-3.8 2.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const LOOP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h8.5a4 4 0 0 1 0 8H7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M9.2 4.8L6.4 7l2.8 2.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const LOOP_CHOICES = [1, 2, 3, 5];
   let key = "";
   let busy = false;
   let settingsWrap = null;
@@ -40,13 +47,20 @@
   let selecting = false;
   let selected = {};
   let nightPicks = {};
-  let shuffleOn = true;
+  let shuffleOn = false;
   let loopOn = false;
   let lastSearchQ = "";
   let readerOpen = false;
   let readerStaySeq = 0;
   let holdTimer = 0;
   let holdId = "";
+  let userStarted = false;
+  let armedId = "";
+  let countId = "";
+  let countLoops = 1;
+  let askUnfavId = "";
+  let finding = false;
+  let holdFired = false;
 
   function setBoot(on, text) {
     if (!hall) return;
@@ -233,6 +247,10 @@
       text.textContent = label;
       row.appendChild(text);
       row.addEventListener("click", function () {
+        if (row.dataset.keep === "1") {
+          onClick();
+          return;
+        }
         closeSettings();
         onClick();
       });
@@ -240,6 +258,12 @@
     }
     menu.appendChild(gearRow(CAMERA, "更換頭像", "cover", function () { if (coverInput) coverInput.click(); }));
     menu.appendChild(gearRow(SCENE, "更換背景", "backdrop", function () { if (backdropInput) backdropInput.click(); }));
+    const shuffleRow = gearRow(SHUFFLE, "隨機", "shuffle", function () { toggleFlag("shuffle"); });
+    const loopRow = gearRow(LOOP, "循環", "loop", function () { toggleFlag("loop"); });
+    shuffleRow.dataset.keep = "1";
+    loopRow.dataset.keep = "1";
+    menu.appendChild(shuffleRow);
+    menu.appendChild(loopRow);
     toggle.addEventListener("click", function (ev) {
       ev.preventDefault();
       ev.stopPropagation();
@@ -305,10 +329,73 @@
     return window.FamiGate.origin() + "/thumb?id=" + encodeURIComponent(item.id) + "&k=" + encodeURIComponent(key);
   }
 
+  function playerEl() {
+    return document.getElementById("player");
+  }
+
+  function postNight(body) {
+    return window.FamiGate.api("/api/night", key, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      timeout: 15000,
+    });
+  }
+
+  function paintFlags() {
+    const sh = document.querySelector('.settings-entry[data-job="shuffle"]');
+    const lp = document.querySelector('.settings-entry[data-job="loop"]');
+    if (sh) {
+      const badge = sh.querySelector(".ins-icon");
+      if (badge) badge.classList.toggle("is-run", !!shuffleOn);
+    }
+    if (lp) {
+      const badge = lp.querySelector(".ins-icon");
+      if (badge) badge.classList.toggle("is-run", !!loopOn);
+    }
+  }
+
+  async function toggleFlag(name) {
+    if (name === "shuffle") shuffleOn = !shuffleOn;
+    if (name === "loop") loopOn = !loopOn;
+    paintFlags();
+    await postNight({ op: "settings", shuffle: shuffleOn, loop: loopOn });
+    paintFlags();
+  }
+
+  function nextLoop(n) {
+    const i = LOOP_CHOICES.indexOf(n);
+    return LOOP_CHOICES[(i < 0 ? 0 : i + 1) % LOOP_CHOICES.length];
+  }
+
+  function loadAudio(id, play) {
+    const player = playerEl();
+    if (!player || !id) return;
+    const origin = window.FamiGate.origin();
+    player.src = origin + "/audio?id=" + encodeURIComponent(id) + "&k=" + encodeURIComponent(key);
+    player.load();
+    if (play) {
+      userStarted = true;
+      player.play().catch(function () {});
+    }
+  }
+
+  function stopAudio() {
+    const player = playerEl();
+    if (!player) return;
+    player.pause();
+    try { player.removeAttribute("src"); player.load(); } catch (e) {}
+  }
+
   function clearSelect() {
     selecting = false;
     selected = {};
-    if (feed) feed.querySelectorAll(".tile.is-on").forEach(function (el) { el.classList.remove("is-on"); });
+    armedId = "";
+    countId = "";
+    if (feed) {
+      feed.querySelectorAll(".tile.is-on").forEach(function (el) { el.classList.remove("is-on"); });
+      feed.querySelectorAll(".tile .job-ctrl.play-arm").forEach(function (el) { el.remove(); });
+    }
     paintRail();
   }
 
@@ -318,39 +405,137 @@
 
   function paintRail() {
     if (!rail) return;
+    if (countId) {
+      rail.hidden = false;
+      rail.innerHTML = "";
+      const cycle = insButton("rail-loop", PLAY, "×" + countLoops);
+      const face = cycle.querySelector(".ins-face");
+      if (face) face.textContent = "×" + countLoops;
+      cycle.addEventListener("click", function () {
+        countLoops = nextLoop(countLoops);
+        if (face) face.textContent = "×" + countLoops;
+      });
+      const go = document.createElement("button");
+      go.type = "button";
+      go.className = "tag-apply";
+      go.innerHTML = '<span class="tag-apply-face">確認</span>';
+      go.addEventListener("click", function () {
+        const id = countId;
+        const loops = countLoops;
+        countId = "";
+        paintRail();
+        goSchedAndPlay(id, loops);
+      });
+      rail.appendChild(cycle);
+      rail.appendChild(go);
+      return;
+    }
     const ids = selectedIds();
-    if (!ids.length) {
+    if (!ids.length || hostTab !== "sched") {
       rail.hidden = true;
       rail.innerHTML = "";
       return;
     }
     rail.hidden = false;
     rail.innerHTML = "";
-    const heart = insButton("rail-heart", HEART, "愛心");
-    heart.addEventListener("click", async function () {
-      for (const id of ids) {
-        await window.FamiGate.api("/api/fav", key, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: id, on: true }),
-        });
+    const trash = insButton("rail-trash", TRASH, "丟掉");
+    trash.addEventListener("click", async function () {
+      const id = ids[0];
+      clearSelect();
+      const x = await postNight({ op: "remove", id: id });
+      const cur = x.j || {};
+      const player = playerEl();
+      if (cur.id && userStarted && !cur.paused && !cur.done) {
+        if (!player || !player.src || player.paused) loadAudio(cur.id, true);
+      } else if (!cur.id || cur.done) {
+        stopAudio();
+      }
+      loadShelf();
+    });
+    const playing = userStarted && playerEl() && !playerEl().paused;
+    const toggle = insButton("job-ctrl", playing ? PAUSE : PLAY, playing ? "暫停" : "播放");
+    toggle.addEventListener("click", async function () {
+      const player = playerEl();
+      if (player && !player.paused && player.src) {
+        player.pause();
+        await postNight({ op: "pause" });
+      } else {
+        userStarted = true;
+        if (player && player.src) player.play().catch(function () {});
+        else {
+          const now = await window.FamiGate.api("/api/night", key, { timeout: 8000 });
+          if (now.j && now.j.id) loadAudio(now.j.id, true);
+        }
+        await postNight({ op: "play" });
       }
       clearSelect();
       loadShelf();
     });
-    rail.appendChild(heart);
-    const go = document.createElement("button");
-    go.type = "button";
-    go.className = "tag-apply";
-    go.innerHTML = '<span class="tag-apply-face">加入今晚</span>';
-    go.addEventListener("click", function () {
-      ids.forEach(function (id) {
-        nightPicks[id] = nightPicks[id] || { id: id, loops: 1 };
-      });
-      clearSelect();
-      openNightCard();
+    rail.appendChild(trash);
+    rail.appendChild(toggle);
+  }
+
+  async function goSchedAndPlay(id, loops) {
+    const before = await window.FamiGate.api("/api/night", key, { timeout: 8000 });
+    const idle = !before.j || !before.j.id || before.j.done || before.j.paused || !userStarted;
+    const state = await postNight({ op: "enqueue", id: id, loops: loops || 1 });
+    pickTab("sched");
+    if (idle && state.j && state.j.id) loadAudio(state.j.id, true);
+  }
+
+  function decorateJob(el, item) {
+    el.classList.add("is-job");
+    el.classList.toggle("is-run", item.state === "running");
+    const name = el.querySelector(".tile-pct");
+    if (name) name.hidden = true;
+    let hud = el.querySelector(".tile-job-hud");
+    if (!hud) {
+      hud = document.createElement("div");
+      hud.className = "tile-job-hud hp";
+      hud.innerHTML =
+        '<div class="hp-label">' +
+        '<span class="hp-text"></span>' +
+        '<div class="thinking-five hp-think" aria-hidden="true" hidden>' +
+        "<span></span><span></span><span></span><span></span><span></span></div></div>";
+      el.appendChild(hud);
+    }
+    const running = item.state === "running";
+    hud.classList.toggle("is-run", running);
+    const text = hud.querySelector(".hp-text");
+    const think = hud.querySelector(".thinking-five");
+    if (text) {
+      text.textContent = running ? "播放中" : (item.state === "paused" ? "已暫停" : "排隊中");
+    }
+    if (think) think.hidden = !running;
+  }
+
+  function armTile(btn, item) {
+    if (feed) feed.querySelectorAll(".tile .job-ctrl.play-arm").forEach(function (el) { el.remove(); });
+    armedId = item.id;
+    const play = insButton("job-ctrl play-arm", PLAY, "播放");
+    play.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (holdFired) {
+        holdFired = false;
+        return;
+      }
+      armedId = "";
+      play.remove();
+      goSchedAndPlay(item.id, 1);
     });
-    rail.appendChild(go);
+    play.addEventListener("pointerdown", function (ev) {
+      ev.stopPropagation();
+      holdTimer = window.setTimeout(function () {
+        holdFired = true;
+        countId = item.id;
+        countLoops = 1;
+        paintRail();
+      }, 480);
+    });
+    play.addEventListener("pointerup", function () { window.clearTimeout(holdTimer); });
+    play.addEventListener("pointercancel", function () { window.clearTimeout(holdTimer); });
+    btn.appendChild(play);
   }
 
   function tileEl(item) {
@@ -372,7 +557,7 @@
     const shield = document.createElement("span");
     shield.className = "tile-shield";
     btn.appendChild(shield);
-    if (item.favorite) {
+    if (item.favorite && hostTab !== "sched") {
       const heart = document.createElement("span");
       heart.className = "tile-heart";
       heart.innerHTML = HEART;
@@ -388,14 +573,33 @@
     name.className = "tile-pct";
     name.textContent = item.title || "";
     btn.appendChild(name);
+    if (hostTab === "sched") decorateJob(btn, item);
     btn.addEventListener("pointerdown", function (ev) {
       if (ev.button && ev.button !== 0) return;
+      if (ev.target.closest && ev.target.closest(".job-ctrl")) return;
       holdId = item.id;
       holdTimer = window.setTimeout(function () {
-        selecting = true;
-        selected[item.id] = true;
-        btn.classList.add("is-on");
-        paintRail();
+        holdFired = true;
+        if (hostTab === "all") {
+          window.FamiGate.api("/api/fav", key, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: item.id, on: true }),
+          }).then(function () { loadShelf(); });
+          return;
+        }
+        if (hostTab === "fav") {
+          openUnfavAsk(item.id);
+          return;
+        }
+        if (hostTab === "sched") {
+          selecting = true;
+          selected = {};
+          selected[item.id] = true;
+          if (feed) feed.querySelectorAll(".tile.is-on").forEach(function (el) { el.classList.remove("is-on"); });
+          btn.classList.add("is-on");
+          paintRail();
+        }
       }, 480);
     });
     function cancelHold() {
@@ -406,35 +610,38 @@
     btn.addEventListener("pointercancel", cancelHold);
     btn.addEventListener("click", function (ev) {
       ev.preventDefault();
-      if (selecting) {
-        if (selected[item.id]) {
-          delete selected[item.id];
-          btn.classList.remove("is-on");
-        } else {
-          selected[item.id] = true;
-          btn.classList.add("is-on");
-        }
-        if (!selectedIds().length) selecting = false;
-        paintRail();
+      if (holdFired) {
+        holdFired = false;
         return;
       }
+      if (ev.target.closest && ev.target.closest(".job-ctrl")) return;
+      if (hostTab === "sched") return;
       if (!item.ready) return;
-      openListen(item.id);
+      if (armedId === item.id) {
+        goSchedAndPlay(item.id, 1);
+        return;
+      }
+      armTile(btn, item);
     });
     return btn;
   }
 
+  function paintFindMode() {
+    const bar = document.getElementById("mode-bar");
+    if (!bar) return;
+    bar.querySelectorAll(".mode-btn").forEach(function (el) {
+      if (el.dataset.mode === "find") el.classList.toggle("is-on", !!finding);
+      else el.classList.toggle("is-on", !finding && el.dataset.mode === hostTab);
+    });
+  }
+
   function pickTab(tab) {
     hostTab = tab || "all";
-    const bar = document.getElementById("mode-bar");
-    if (bar) {
-      bar.querySelectorAll(".mode-btn").forEach(function (el) {
-        el.classList.toggle("is-on", el.dataset.mode === hostTab);
-      });
-    }
+    finding = false;
+    closeFind();
+    paintFindMode();
     clearSelect();
     loadShelf();
-    if (tab === "night") openNightCard();
   }
 
   function ensureModes() {
@@ -443,7 +650,7 @@
     bar.dataset.ready = "1";
     bar.hidden = false;
     if (tagBoard) tagBoard.hidden = false;
-    [["fav", "最愛"], ["all", "全部"], ["night", "今晚"]].forEach(function (pair) {
+    [["fav", "最愛"], ["all", "全部"], ["sched", "排程"]].forEach(function (pair) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "mode-btn" + (hostTab === pair[0] ? " is-on" : "");
@@ -452,11 +659,29 @@
       btn.addEventListener("click", function () { pickTab(pair[0]); });
       bar.appendChild(btn);
     });
+    const findBtn = document.createElement("button");
+    findBtn.type = "button";
+    findBtn.className = "mode-btn mode-find";
+    findBtn.dataset.mode = "find";
+    findBtn.innerHTML = MAG + "<span>找故事？</span>";
+    findBtn.addEventListener("click", function () {
+      finding = true;
+      paintFindMode();
+      const mask = document.getElementById("findMask");
+      const title = document.getElementById("findTitle");
+      if (title) title.textContent = "找故事？";
+      if (mask) mask.hidden = false;
+      const input = document.getElementById("findInput");
+      if (input) input.value = "";
+    });
+    bar.appendChild(findBtn);
   }
 
   function closeFind() {
     const mask = document.getElementById("findMask");
     if (mask) mask.hidden = true;
+    finding = false;
+    paintFindMode();
   }
 
   function closeAct() {
@@ -480,15 +705,15 @@
   function showHits(result, query) {
     lastSearchQ = query || result.q || "";
     const mask = document.getElementById("findMask");
-    const body = document.getElementById("findBody");
+    const body = document.getElementById("findHits");
     const title = document.getElementById("findTitle");
-    if (title) title.textContent = lastSearchQ ? "是這個嗎" : "找故事";
+    if (title) title.textContent = lastSearchQ ? "是這個嗎" : "找故事？";
     if (!body || !mask) return;
     body.innerHTML = "";
     const hits = result.hits || [];
     if (!hits.length) {
       const p = document.createElement("p");
-      p.textContent = "沒對到，再講一次";
+      p.textContent = "沒對到，再找一次";
       body.appendChild(p);
     }
     hits.forEach(function (hit) {
@@ -505,130 +730,31 @@
           });
         }
         closeFind();
-        openHitChoice(hit);
+        goSchedAndPlay(hit.id, 1);
       });
       body.appendChild(row);
     });
+    finding = true;
     mask.hidden = false;
+    paintFindMode();
   }
 
-  function openHitChoice(hit) {
-    const mask = document.getElementById("actMask");
-    const body = document.getElementById("actBody");
-    const title = document.getElementById("actTitle");
-    if (title) title.textContent = hit.title;
-    if (!body || !mask) return;
-    body.innerHTML = "";
-    const now = document.createElement("button");
-    now.type = "button";
-    now.className = "tag-apply";
-    now.innerHTML = '<span class="tag-apply-face">現在聽</span>';
-    now.addEventListener("click", async function () {
-      await window.FamiGate.api("/api/night/play", key, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: hit.id }),
-      });
-      closeAct();
-      openListen(hit.id);
-    });
-    const add = document.createElement("button");
-    add.type = "button";
-    add.className = "tag-apply";
-    add.innerHTML = '<span class="tag-apply-face">加入今晚</span>';
-    add.addEventListener("click", function () {
-      nightPicks[hit.id] = nightPicks[hit.id] || { id: hit.id, loops: 1 };
-      openNightCard();
-    });
-    body.appendChild(now);
-    body.appendChild(add);
-    mask.hidden = false;
+  function openUnfavAsk(id) {
+    askUnfavId = id;
+    const mask = document.getElementById("askMask");
+    const text = document.getElementById("askText");
+    const yes = document.getElementById("askYes");
+    const ok = document.getElementById("askOk");
+    if (text) text.textContent = "是否取消最愛";
+    if (yes) yes.hidden = true;
+    if (ok) ok.hidden = false;
+    if (mask) mask.hidden = false;
   }
 
-  function switchRow(label, on, onChange) {
-    const wrap = document.createElement("label");
-    wrap.className = "ask-skip";
-    const text = document.createElement("span");
-    text.textContent = label;
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    input.role = "switch";
-    input.checked = !!on;
-    const sw = document.createElement("span");
-    sw.className = "ask-sw";
-    input.addEventListener("change", function () { onChange(input.checked); });
-    wrap.appendChild(text);
-    wrap.appendChild(input);
-    wrap.appendChild(sw);
-    return wrap;
-  }
-
-  function openNightCard() {
-    const mask = document.getElementById("actMask");
-    const body = document.getElementById("actBody");
-    const title = document.getElementById("actTitle");
-    if (title) title.textContent = "今晚";
-    if (!body || !mask) return;
-    body.innerHTML = "";
-    const ids = Object.keys(nightPicks);
-    if (!ids.length) {
-      const p = document.createElement("p");
-      p.textContent = "還沒選。長押格子，或說話找。沒選就全部隨機。";
-      body.appendChild(p);
-    }
-    ids.forEach(function (id) {
-      const item = catalog[id] || { id: id, title: id };
-      const pick = nightPicks[id];
-      const row = document.createElement("div");
-      row.className = "night-row";
-      const name = document.createElement("span");
-      name.textContent = item.title || id;
-      const minus = document.createElement("button");
-      minus.type = "button";
-      minus.className = "mode-btn";
-      minus.textContent = "−";
-      const count = document.createElement("span");
-      count.textContent = String(pick.loops || 1);
-      const plus = document.createElement("button");
-      plus.type = "button";
-      plus.className = "mode-btn";
-      plus.textContent = "+";
-      minus.addEventListener("click", function () {
-        pick.loops = Math.max(1, (pick.loops || 1) - 1);
-        count.textContent = String(pick.loops);
-      });
-      plus.addEventListener("click", function () {
-        pick.loops = Math.min(20, (pick.loops || 1) + 1);
-        count.textContent = String(pick.loops);
-      });
-      row.appendChild(name);
-      row.appendChild(minus);
-      row.appendChild(count);
-      row.appendChild(plus);
-      body.appendChild(row);
-    });
-    body.appendChild(switchRow("隨機", shuffleOn, function (v) { shuffleOn = v; }));
-    body.appendChild(switchRow("循環", loopOn, function (v) { loopOn = v; }));
-    const go = document.createElement("button");
-    go.type = "button";
-    go.className = "tag-apply";
-    go.innerHTML = '<span class="tag-apply-face">開始聽</span>';
-    go.addEventListener("click", async function () {
-      const picks = Object.keys(nightPicks).map(function (id) {
-        return { id: id, loops: nightPicks[id].loops || 1 };
-      });
-      const x = await window.FamiGate.api("/api/night", key, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ picks: picks, shuffle: shuffleOn, loop: loopOn }),
-        timeout: 15000,
-      });
-      closeAct();
-      const first = x.j && x.j.queue && x.j.queue[0];
-      if (first) openListen(first);
-    });
-    body.appendChild(go);
-    mask.hidden = false;
+  function closeAsk() {
+    const mask = document.getElementById("askMask");
+    if (mask) mask.hidden = true;
+    askUnfavId = "";
   }
 
   function stayOverlayUrl(n) {
@@ -705,6 +831,7 @@
     }
     if (night.shuffle != null) shuffleOn = !!night.shuffle;
     if (night.loop != null) loopOn = !!night.loop;
+    paintFlags();
     feed.innerHTML = "";
     catalog = {};
     (x.j.items || []).forEach(function (it) { feed.appendChild(tileEl(it)); });
@@ -721,7 +848,7 @@
     });
     if (!x.j) return;
     if (x.j.auto && x.j.hits && x.j.hits[0]) {
-      openListen(x.j.hits[0].id);
+      goSchedAndPlay(x.j.hits[0].id, 1);
       return;
     }
     showHits(x.j, q);
@@ -733,7 +860,7 @@
     const x = await window.FamiGate.api("/api/search", key, { method: "POST", body: fd, timeout: 45000 });
     if (!x.j) return;
     if (x.j.auto && x.j.hits && x.j.hits[0]) {
-      openListen(x.j.hits[0].id);
+      goSchedAndPlay(x.j.hits[0].id, 1);
       return;
     }
     showHits(x.j, x.j.q || "");
@@ -991,6 +1118,48 @@
   if (actClose) actClose.addEventListener("click", closeAct);
   bindMaskClose("findMask", closeFind);
   bindMaskClose("actMask", closeAct);
+  const findForm = document.getElementById("findForm");
+  if (findForm) {
+    findForm.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      const input = document.getElementById("findInput");
+      const q = ((input && input.value) || "").trim();
+      if (!q) return;
+      searchText(q);
+    });
+  }
+  const askNo = document.getElementById("askNo");
+  const askOk = document.getElementById("askOk");
+  if (askNo) askNo.addEventListener("click", closeAsk);
+  if (askOk) {
+    askOk.addEventListener("click", async function () {
+      const id = askUnfavId;
+      closeAsk();
+      if (!id) return;
+      await window.FamiGate.api("/api/fav", key, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: id, on: false }),
+      });
+      loadShelf();
+    });
+  }
+  const player = playerEl();
+  if (player) {
+    player.addEventListener("ended", async function () {
+      if (!userStarted) return;
+      const x = await postNight({ op: "next" });
+      if (x.j && x.j.id && !x.j.done) loadAudio(x.j.id, true);
+      else stopAudio();
+      if (hostTab === "sched") loadShelf();
+    });
+    player.addEventListener("play", function () {
+      if (hostTab === "sched") loadShelf();
+    });
+    player.addEventListener("pause", function () {
+      if (hostTab === "sched") paintRail();
+    });
+  }
 
   const readerBack = document.getElementById("reader-back");
   if (readerBack) readerBack.addEventListener("click", function (ev) {

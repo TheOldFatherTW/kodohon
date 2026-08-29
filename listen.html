@@ -15,12 +15,12 @@
 <meta name="apple-mobile-web-app-title" content="講故事"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <meta name="theme-color" content="#f2f2f7"/>
-<link rel="apple-touch-icon" href="./icons/mark-180.png?v=1"/>
+<link rel="apple-touch-icon" href="./icons/mark-180.png?v=2"/>
 <title>講故事</title>
 <script src="./config.js?v=1787979394"></script>
-<script src="./gate.js?v=1"></script>
-<link rel="stylesheet" href="./app.css?v=1"/>
-<link rel="stylesheet" href="./listen.css?v=1"/>
+<script src="./gate.js?v=2"></script>
+<link rel="stylesheet" href="./app.css?v=2"/>
+<link rel="stylesheet" href="./listen.css?v=2"/>
 </head>
 <body class="famiWeb lightTheme">
 <div id="topMenu" class="navMenu">
@@ -42,9 +42,6 @@
         </span>
       </button>
       <div id="readerSettingsMenu" class="settings-menu" hidden role="menu">
-        <button type="button" class="settings-entry" id="openQueue" role="menuitem">
-          <span>今晚</span>
-        </button>
         <button type="button" class="settings-entry" id="backToShelf" role="menuitem">
           <span>返回</span>
         </button>
@@ -64,27 +61,6 @@
   </button>
 </div>
 <div class="settings-catch" id="readerSettingsCatch" hidden></div>
-<div class="batch-tag-mask" id="configMask" hidden>
-  <div class="batch-tag-sheet" id="configMenu">
-    <div class="batch-tag-head">
-      <p>今晚</p>
-      <button type="button" class="batch-tag-close" id="closeMenu">×</button>
-    </div>
-    <label class="ask-skip">
-      <span>隨機</span>
-      <input id="shuffleSwitch" type="checkbox" role="switch" checked/>
-      <span class="ask-sw"></span>
-    </label>
-    <label class="ask-skip">
-      <span>循環</span>
-      <input id="loopSwitch" type="checkbox" role="switch"/>
-      <span class="ask-sw"></span>
-    </label>
-    <button type="button" class="tag-apply" id="savePlay">
-      <span class="tag-apply-face">確認</span>
-    </button>
-  </div>
-</div>
-<script src="./listen.js?v=1"></script>
+<script src="./listen.js?v=2"></script>
 </body>
 </html>

@@ -1551,3 +1551,52 @@ html.is-reading body {
   flex: 1;
   text-align: left;
 }
+.mode-find {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.mode-find svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+.tag-picker-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  background: transparent;
+}
+.tag-picker-form .tag-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  height: 40px;
+  margin: 0;
+  padding: 8px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 15px;
+  -webkit-appearance: none;
+  appearance: none;
+  touch-action: pan-y;
+}
+.tag-picker-form .tag-search-input:focus {
+  border-color: #d62976;
+  outline: 2px solid rgba(214, 41, 118, 0.16);
+  outline-offset: 1px;
+}
+.tag-search-input::-webkit-search-decoration,
+.tag-search-input::-webkit-search-cancel-button,
+.tag-search-input::-webkit-contacts-auto-fill-button,
+.tag-search-input::-webkit-credentials-auto-fill-button {
+  display: none !important;
+}
+.ask-actions .tag-apply {
+  flex: 1;
+  margin: 0;
+  height: 44px;
+}
