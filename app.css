@@ -1244,6 +1244,9 @@ button.tag-chip {
   color: #fff;
 }
 .tile.is-job .tile-shield {
+  box-shadow: none;
+}
+.tile.is-job.is-pick .tile-shield {
   box-shadow: inset 0 0 0 3px var(--rose);
 }
 .host-lines {
@@ -1460,10 +1463,33 @@ button.tag-chip {
   z-index: 5;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.28));
 }
+.tile .job-ctrl.play-arm {
+  left: 50%;
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  width: 56px;
+  height: 56px;
+  flex-basis: 56px;
+  transform: translate(-50%, -50%);
+}
+.tile .job-ctrl.play-arm .ins-ring {
+  inset: 4px;
+}
+.tile .job-ctrl.play-arm .ins-face {
+  inset: 7px;
+}
 @media (prefers-reduced-motion: reduce) {
   .thinking-five span, .blobs span, .cab-cover.is-run .cab-ring,
   .cab-cover.is-holo .cab-foil, .ins-icon.is-run .ins-ring, button.tag-apply::before,
   .tile.is-run::before, .hp.is-run .hp-fill { animation: none; }
+}
+.tag-modal-open,
+.tag-modal-open body {
+  overflow: hidden;
+  height: 100%;
+  touch-action: none;
+  overscroll-behavior: none;
 }
 html.is-reading,
 html.is-reading body {

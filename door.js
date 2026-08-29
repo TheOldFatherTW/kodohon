@@ -688,6 +688,7 @@
   function bindMaskClose(maskId, closeFn) {
     const mask = document.getElementById(maskId);
     if (!mask) return;
+    if (window.FamiGate && window.FamiGate.lockSheetPage) window.FamiGate.lockSheetPage(mask);
     let down = false;
     mask.addEventListener("pointerdown", function (ev) {
       down = ev.target === mask;
@@ -1099,6 +1100,10 @@
   if (actClose) actClose.addEventListener("click", closeAct);
   bindMaskClose("findMask", closeFind);
   bindMaskClose("actMask", closeAct);
+  if (window.FamiGate && window.FamiGate.lockSheetPage) {
+    const askMask = document.getElementById("askMask");
+    if (askMask) window.FamiGate.lockSheetPage(askMask);
+  }
   const findForm = document.getElementById("findForm");
   if (findForm) {
     findForm.addEventListener("submit", function (ev) {
