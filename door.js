@@ -59,6 +59,10 @@
   let finding = false;
   let holdFired = false;
   let waitingId = "";
+  let nextStoryId = "";
+  let liveIsA = true;
+  let playersPrimed = false;
+  let handingOff = false;
 
   function setBoot(on, text) {
     if (!hall) return;
@@ -327,18 +331,123 @@
   }
 
   function playerEl() {
-    return document.getElementById("player");
+    return document.getElementById(liveIsA ? "player" : "player-next");
   }
 
-  function playerStoryId() {
-    const player = playerEl();
-    const src = (player && (player.currentSrc || player.src)) || "";
+  function standbyEl() {
+    return document.getElementById(liveIsA ? "player-next" : "player");
+  }
+
+  function storyIdFrom(el) {
+    const src = (el && (el.currentSrc || el.src)) || "";
     if (!src) return "";
     try {
       return new URL(src, location.href).searchParams.get("id") || "";
     } catch (e) {
       return "";
     }
+  }
+
+  function playerStoryId() {
+    return storyIdFrom(playerEl());
+  }
+
+  function audioUrl(id) {
+    return window.FamiGate.origin() + "/audio?id=" + encodeURIComponent(id) + "&k=" + encodeURIComponent(key);
+  }
+
+  function rememberNight(j) {
+    if (j && Object.prototype.hasOwnProperty.call(j, "next_id")) {
+      nextStoryId = j.next_id || "";
+      if (userStarted) armStandby();
+    }
+  }
+
+  function primePlayers(id) {
+    if (playersPrimed) return;
+    playersPrimed = true;
+    const wait = document.getElementById("player-next");
+    if (!wait) return;
+    if (id) {
+      try { wait.src = audioUrl(id); } catch (e) {}
+    }
+    wait.muted = true;
+    const p = wait.play();
+    if (p && p.then) {
+      p.then(function () {
+        wait.pause();
+        wait.muted = false;
+      }).catch(function () { wait.muted = false; });
+    } else {
+      try { wait.pause(); } catch (e) {}
+      wait.muted = false;
+    }
+  }
+
+  function loadStandby(id) {
+    const el = standbyEl();
+    if (!el || !id) return;
+    if (storyIdFrom(el) === id && (el.currentSrc || el.src)) return;
+    el.src = audioUrl(id);
+    el.load();
+  }
+
+  function armStandby() {
+    const nid = nextStoryId;
+    const cur = playerStoryId();
+    if (!nid || nid === cur) return;
+    loadStandby(nid);
+  }
+
+  function paintNowPlaying(id) {
+    if (!navigator.mediaSession) return;
+    const item = catalog[id] || {};
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: item.title || "講故事",
+        artist: "甜喬說故事",
+      });
+      navigator.mediaSession.playbackState = "playing";
+    } catch (e) {}
+  }
+
+  function tryHandoff(fromEnded) {
+    if (handingOff || !userStarted) return;
+    const nid = nextStoryId;
+    if (nid && nid === playerStoryId() && !fromEnded) return;
+    if (!nid) {
+      if (!fromEnded) return;
+      handingOff = true;
+      postNight({ op: "next" }).then(function (x) {
+        handingOff = false;
+        if (x.j && x.j.id && !x.j.done) loadAudio(x.j.id, true);
+        else stopAudio();
+        if (hostTab === "sched") loadShelf();
+      });
+      return;
+    }
+    handingOff = true;
+    const live = playerEl();
+    const wait = standbyEl();
+    if (nid === playerStoryId()) {
+      try { live.currentTime = 0; } catch (e) {}
+      live.play().catch(function () {});
+    } else if (wait && storyIdFrom(wait) === nid) {
+      waitingId = nid;
+      live.pause();
+      liveIsA = !liveIsA;
+      playerEl().play().catch(function () {});
+    } else {
+      loadAudio(nid, true);
+    }
+    postNight({ op: "next" }).then(function (x) {
+      handingOff = false;
+      const liveId = playerStoryId();
+      if (x.j && x.j.done && !liveId) stopAudio();
+      else if (x.j && x.j.id && x.j.id !== liveId) loadAudio(x.j.id, true);
+      armStandby();
+      if (hostTab === "sched") loadShelf();
+    });
   }
 
   function paintSchedHuds() {
@@ -358,6 +467,9 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       timeout: 15000,
+    }).then(function (x) {
+      rememberNight(x.j);
+      return x;
     });
   }
 
@@ -390,25 +502,31 @@
   function loadAudio(id, play) {
     const player = playerEl();
     if (!player || !id) return;
-    const origin = window.FamiGate.origin();
+    handingOff = false;
     if (play) {
       userStarted = true;
       waitingId = id;
       paintSchedHuds();
     }
-    player.src = origin + "/audio?id=" + encodeURIComponent(id) + "&k=" + encodeURIComponent(key);
+    player.src = audioUrl(id);
     player.load();
     if (play) {
       player.play().catch(function () {});
+      armStandby();
     }
   }
 
   function stopAudio() {
-    const player = playerEl();
     waitingId = "";
-    if (!player) return;
-    player.pause();
-    try { player.removeAttribute("src"); player.load(); } catch (e) {}
+    nextStoryId = "";
+    handingOff = false;
+    liveIsA = true;
+    ["player", "player-next"].forEach(function (pid) {
+      const el = document.getElementById(pid);
+      if (!el) return;
+      el.pause();
+      try { el.removeAttribute("src"); el.load(); } catch (e) {}
+    });
   }
 
   function clearSelect() {
@@ -479,6 +597,7 @@
       const player = playerEl();
       const pick = selectedPick;
       const here = tile && tile.dataset.id;
+      if (here) primePlayers(here);
       if (player && !player.paused && player.src && here && playerStoryId() === here) {
         player.pause();
         waitingId = "";
@@ -497,6 +616,7 @@
         const nid = (now.j && now.j.id) || here;
         if (sameSrc) player.play().catch(function () {});
         else if (nid) loadAudio(nid, true);
+        armStandby();
       }
       loadShelf();
     });
@@ -527,11 +647,14 @@
   }
 
   async function goSchedAndPlay(id, loops) {
+    primePlayers(id);
     const before = await window.FamiGate.api("/api/night", key, { timeout: 8000 });
+    rememberNight(before.j);
     const idle = !before.j || !before.j.id || before.j.done || before.j.paused || !userStarted;
     await postNight({ op: "enqueue", id: id, loops: loops || 1 });
     if (idle) {
       const now = await window.FamiGate.api("/api/night", key, { timeout: 8000 });
+      rememberNight(now.j);
       const picks = (now.j && now.j.night && now.j.night.picks) || [];
       let idx = picks.length - 1;
       for (let i = picks.length - 1; i >= 0; i--) {
@@ -544,6 +667,8 @@
       selectedPick = "0";
       const nid = (played.j && played.j.id) || id;
       loadAudio(nid, true);
+    } else {
+      armStandby();
     }
     pickTab("sched");
   }
@@ -1197,35 +1322,58 @@
       loadShelf();
     });
   }
-  const player = playerEl();
-  if (player) {
-    player.addEventListener("ended", async function () {
-      if (!userStarted) return;
-      const x = await postNight({ op: "next" });
-      if (x.j && x.j.id && !x.j.done) loadAudio(x.j.id, true);
-      else stopAudio();
-      if (hostTab === "sched") loadShelf();
+  function bindPlayer(el) {
+    if (!el) return;
+    el.addEventListener("ended", function () {
+      if (el !== playerEl() || !userStarted) return;
+      tryHandoff(true);
     });
-    player.addEventListener("playing", function () {
+    el.addEventListener("timeupdate", function () {
+      if (el !== playerEl() || !userStarted) return;
+      if (el.duration && isFinite(el.duration) && el.duration > 1 && el.duration - el.currentTime <= 0.35) {
+        tryHandoff(false);
+      }
+    });
+    el.addEventListener("playing", function () {
+      if (el !== playerEl()) return;
       waitingId = "";
+      armStandby();
+      paintNowPlaying(playerStoryId());
       if (hostTab === "sched") loadShelf();
     });
-    player.addEventListener("waiting", function () {
+    el.addEventListener("waiting", function () {
+      if (el !== playerEl()) return;
       const sid = playerStoryId();
       if (userStarted && sid) {
         waitingId = sid;
         paintSchedHuds();
       }
     });
-    player.addEventListener("play", function () {
+    el.addEventListener("play", function () {
+      if (el !== playerEl()) return;
       if (hostTab === "sched") paintRail();
     });
-    player.addEventListener("pause", function () {
+    el.addEventListener("pause", function () {
+      if (el !== playerEl() || handingOff) return;
       if (hostTab === "sched") {
         paintSchedHuds();
         paintRail();
       }
     });
+  }
+  bindPlayer(document.getElementById("player"));
+  bindPlayer(document.getElementById("player-next"));
+  if (navigator.mediaSession) {
+    try {
+      navigator.mediaSession.setActionHandler("play", function () {
+        const p = playerEl();
+        if (p) p.play().catch(function () {});
+      });
+      navigator.mediaSession.setActionHandler("pause", function () {
+        const p = playerEl();
+        if (p) p.pause();
+      });
+    } catch (e) {}
   }
 
   const readerBack = document.getElementById("reader-back");

@@ -52,7 +52,8 @@
 <div class="listen-stage">
   <img id="listenCover" alt=""/>
   <p id="listenWait" hidden>打開故事</p>
-  <audio id="player" playsinline></audio>
+  <audio id="player" playsinline webkit-playsinline preload="auto"></audio>
+  <audio id="player-next" playsinline webkit-playsinline preload="auto"></audio>
   <button type="button" class="tag-apply" id="playBtn">
     <span class="tag-apply-face" id="playFace">播放</span>
   </button>
@@ -61,6 +62,6 @@
   </button>
 </div>
 <div class="settings-catch" id="readerSettingsCatch" hidden></div>
-<script src="./listen.js?v=2"></script>
+<script src="./listen.js?v=3"></script>
 </body>
 </html>

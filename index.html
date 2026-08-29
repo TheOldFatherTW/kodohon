@@ -112,7 +112,8 @@
     </div>
   </div>
   <div class="feed" id="feed"></div>
-  <audio id="player" playsinline></audio>
+  <audio id="player" playsinline webkit-playsinline preload="auto"></audio>
+  <audio id="player-next" playsinline webkit-playsinline preload="auto"></audio>
 </div>
 <aside class="photo-rail" id="photo-rail" hidden aria-label="故事操作"></aside>
 <input id="cover-input" type="file" accept="image/*" hidden/>
@@ -182,6 +183,6 @@
 </div>
 <script src="./mark.js?v=6"></script>
 <script src="./gate.js?v=3"></script>
-<script src="./door.js?v=8"></script>
+<script src="./door.js?v=9"></script>
 </body>
 </html>
