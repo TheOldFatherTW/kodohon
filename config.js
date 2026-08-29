@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://italia-movies-anne-dicke.trycloudflare.com";
+window.VAULT_ORIGIN = "https://cells-travelling-soldier-cia.trycloudflare.com";
