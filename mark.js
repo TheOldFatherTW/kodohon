@@ -8,7 +8,7 @@
     const img = document.createElement("img");
     img.className = "story-mark-svg";
     img.alt = "";
-    img.src = "./icons/mark-180.png?v=3";
+    img.src = "./icons/mark-180.png?v=4";
     root.innerHTML = "";
     root.appendChild(img);
   }

@@ -1601,7 +1601,7 @@ html.is-reading body {
   margin: 0 auto 12px;
   color: var(--accent);
 }
-.story-mark-svg { width: 100%; height: 100%; display: block; object-fit: cover; border-radius: 22%; }
+.story-mark-svg { width: 100%; height: 100%; display: block; object-fit: contain; }
 .hall.with-feed:not(.is-invite):not(.is-booting) .story-mark { display: none !important; }
 .kb-up .hall.is-invite .story-mark { display: none; }
 .tag-board {
