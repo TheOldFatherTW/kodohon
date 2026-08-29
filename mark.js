@@ -5,17 +5,12 @@
   function mount(root) {
     if (!root || root.getAttribute("data-mark") === "on") return;
     root.setAttribute("data-mark", "on");
-    const svg = document.createElementNS(SVG_NS, "svg");
-    svg.setAttribute("viewBox", "0 0 100 100");
-    svg.setAttribute("class", "story-mark-svg");
-    svg.setAttribute("aria-hidden", "true");
-    svg.innerHTML = [
-      '<circle cx="50" cy="50" r="34" fill="none" stroke="currentColor" stroke-width="2.4" opacity="0.22"/>',
-      '<circle cx="46" cy="50" r="22" fill="currentColor"/>',
-      '<circle cx="56" cy="46" r="16" fill="#fafafa"/>',
-    ].join("");
+    const img = document.createElement("img");
+    img.className = "story-mark-svg";
+    img.alt = "";
+    img.src = "./icons/mark-180.png?v=3";
     root.innerHTML = "";
-    root.appendChild(svg);
+    root.appendChild(img);
   }
 
   function mountBar(root) {

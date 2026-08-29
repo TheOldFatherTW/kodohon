@@ -58,6 +58,7 @@
   let askUnfavId = "";
   let finding = false;
   let holdFired = false;
+  let waitingId = "";
 
   function setBoot(on, text) {
     if (!hall) return;
@@ -329,6 +330,28 @@
     return document.getElementById("player");
   }
 
+  function playerStoryId() {
+    const player = playerEl();
+    const src = (player && (player.currentSrc || player.src)) || "";
+    if (!src) return "";
+    try {
+      return new URL(src, location.href).searchParams.get("id") || "";
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function paintSchedHuds() {
+    if (!feed || hostTab !== "sched") return;
+    feed.querySelectorAll(".tile.is-job").forEach(function (el) {
+      decorateJob(el, {
+        id: el.dataset.id,
+        pick: el.dataset.pick,
+        state: el.dataset.state,
+      });
+    });
+  }
+
   function postNight(body) {
     return window.FamiGate.api("/api/night", key, {
       method: "POST",
@@ -368,16 +391,21 @@
     const player = playerEl();
     if (!player || !id) return;
     const origin = window.FamiGate.origin();
+    if (play) {
+      userStarted = true;
+      waitingId = id;
+      paintSchedHuds();
+    }
     player.src = origin + "/audio?id=" + encodeURIComponent(id) + "&k=" + encodeURIComponent(key);
     player.load();
     if (play) {
-      userStarted = true;
       player.play().catch(function () {});
     }
   }
 
   function stopAudio() {
     const player = playerEl();
+    waitingId = "";
     if (!player) return;
     player.pause();
     try { player.removeAttribute("src"); player.load(); } catch (e) {}
@@ -444,21 +472,31 @@
       }
       loadShelf();
     });
-    const playing = userStarted && playerEl() && !playerEl().paused;
-    const toggle = insButton("job-ctrl", playing ? PAUSE : PLAY, playing ? "暫停" : "播放");
+    const sid = tile && tile.dataset.id;
+    const live = !!(userStarted && playerEl() && !playerEl().paused && sid && playerStoryId() === sid);
+    const toggle = insButton("job-ctrl", live ? PAUSE : PLAY, live ? "暫停" : "播放");
     toggle.addEventListener("click", async function () {
       const player = playerEl();
-      if (player && !player.paused && player.src) {
+      const pick = selectedPick;
+      const here = tile && tile.dataset.id;
+      if (player && !player.paused && player.src && here && playerStoryId() === here) {
         player.pause();
+        waitingId = "";
         await postNight({ op: "pause" });
       } else {
         userStarted = true;
-        if (player && player.src) player.play().catch(function () {});
-        else {
-          const now = await window.FamiGate.api("/api/night", key, { timeout: 8000 });
-          if (now.j && now.j.id) loadAudio(now.j.id, true);
+        const sameSrc = !!(here && player && player.src && playerStoryId() === here);
+        if (!sameSrc && here) {
+          waitingId = here;
+          paintSchedHuds();
         }
-        await postNight({ op: "play" });
+        const now = here
+          ? await postNight({ op: "play_pick", index: pick })
+          : await postNight({ op: "play" });
+        selectedPick = "0";
+        const nid = (now.j && now.j.id) || here;
+        if (sameSrc) player.play().catch(function () {});
+        else if (nid) loadAudio(nid, true);
       }
       loadShelf();
     });
@@ -498,7 +536,21 @@
 
   function decorateJob(el, item) {
     el.classList.add("is-job");
-    el.classList.toggle("is-run", item.state === "running");
+    if (item.state != null) el.dataset.state = item.state;
+    if (item.pick != null) el.dataset.pick = String(item.pick);
+    const sid = item.id;
+    const same = playerStoryId() === sid;
+    const player = playerEl();
+    const live = !!(player && player.src && !player.paused && same);
+    const loading = waitingId === sid;
+    const pick = item.pick != null ? String(item.pick) : "";
+    let hudState = "queued";
+    if (loading || live) hudState = "running";
+    else if (same && userStarted) hudState = "paused";
+    else if (pick === "0") hudState = "paused";
+    else if (item.state === "paused") hudState = "paused";
+    else if (item.state === "running") hudState = "running";
+    el.classList.toggle("is-run", hudState === "running");
     const name = el.querySelector(".tile-pct");
     if (name) name.hidden = true;
     let hud = el.querySelector(".tile-job-hud");
@@ -512,12 +564,12 @@
         "<span></span><span></span><span></span><span></span><span></span></div></div>";
       el.appendChild(hud);
     }
-    const running = item.state === "running";
+    const running = hudState === "running";
     hud.classList.toggle("is-run", running);
     const text = hud.querySelector(".hp-text");
     const think = hud.querySelector(".thinking-five");
     if (text) {
-      text.textContent = running ? "播放中" : (item.state === "paused" ? "已暫停" : "排隊中");
+      text.textContent = running ? "播放中" : (hudState === "paused" ? "已暫停" : "排隊中");
     }
     if (think) think.hidden = !running;
   }
@@ -544,6 +596,7 @@
     btn.dataset.id = item.id;
     if (item.pick != null) btn.dataset.pick = String(item.pick);
     if (item.loops != null) btn.dataset.loops = String(item.loops);
+    if (item.state != null) btn.dataset.state = item.state;
     if (item.has_cover) {
       const img = document.createElement("img");
       img.alt = item.title || "";
@@ -1139,11 +1192,25 @@
       else stopAudio();
       if (hostTab === "sched") loadShelf();
     });
-    player.addEventListener("play", function () {
+    player.addEventListener("playing", function () {
+      waitingId = "";
       if (hostTab === "sched") loadShelf();
     });
-    player.addEventListener("pause", function () {
+    player.addEventListener("waiting", function () {
+      const sid = playerStoryId();
+      if (userStarted && sid) {
+        waitingId = sid;
+        paintSchedHuds();
+      }
+    });
+    player.addEventListener("play", function () {
       if (hostTab === "sched") paintRail();
+    });
+    player.addEventListener("pause", function () {
+      if (hostTab === "sched") {
+        paintSchedHuds();
+        paintRail();
+      }
     });
   }
 
