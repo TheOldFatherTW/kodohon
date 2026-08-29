@@ -19,7 +19,6 @@
   const backdropInput = document.getElementById("backdrop-input");
   const stageBg = document.getElementById("stage-bg");
   const homeHead = document.getElementById("home-head");
-  const micBtn = document.getElementById("mic-btn");
   const rail = document.getElementById("photo-rail");
   const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.6 3.8l.6-1.3h3.6l.6 1.3 1.6.7 1.4-.5 2.5 2.5-.5 1.4.7 1.6 1.3.6v3.6l-1.3.6-.7 1.6.5 1.4-2.5 2.5-1.4-.5-1.6.7-.6 1.3h-3.6l-.6-1.3-1.6-.7-1.4.5-2.5-2.5.5-1.4-.7-1.6-1.3-.6v-3.6l1.3-.6.7-1.6-.5-1.4L6.6 4l1.4.5 1.6-.7z" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/><circle cx="12" cy="11.9" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
   const CAMERA = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="8" width="17" height="11.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 8l1.4-2.4h5.2L16 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13.6" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>';
@@ -31,7 +30,7 @@
   const TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8V6.8A1.8 1.8 0 0 1 9.8 5h4.4A1.8 1.8 0 0 1 16 6.8V8M5 8h14M9 11v7M12 11v7M15 11v7M7 8l.8 12.2A1.6 1.6 0 0 0 9.4 22h5.2a1.6 1.6 0 0 0 1.6-1.8L17 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const SHUFFLE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h4.2l7.6 10H20M16.5 7H20M4 17h4.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.2 4.8L20 7l-3.8 2.2M16.2 14.8L20 17l-3.8 2.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const LOOP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h8.5a4 4 0 0 1 0 8H7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M9.2 4.8L6.4 7l2.8 2.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  const LOOP_CHOICES = [1, 2, 3, 5];
+  const LOOP_CHOICES = [1, 2, 3, 0];
   let key = "";
   let busy = false;
   let settingsWrap = null;
@@ -44,8 +43,7 @@
   let ready = false;
   let booting = false;
   let bootTimer = 0;
-  let selecting = false;
-  let selected = {};
+  let selectedPick = "";
   let nightPicks = {};
   let shuffleOn = false;
   let loopOn = false;
@@ -56,7 +54,6 @@
   let holdId = "";
   let userStarted = false;
   let armedId = "";
-  let countId = "";
   let countLoops = 1;
   let askUnfavId = "";
   let finding = false;
@@ -321,7 +318,6 @@
     if (homeHead) homeHead.hidden = false;
     const settings = ensureSettings();
     settings.hidden = false;
-    if (micBtn) micBtn.hidden = false;
     paintStage(reader);
   }
 
@@ -388,61 +384,57 @@
   }
 
   function clearSelect() {
-    selecting = false;
-    selected = {};
+    selectedPick = "";
     armedId = "";
-    countId = "";
     if (feed) {
-      feed.querySelectorAll(".tile.is-on").forEach(function (el) { el.classList.remove("is-on"); });
+      feed.querySelectorAll(".tile.is-pick").forEach(function (el) { el.classList.remove("is-pick"); });
       feed.querySelectorAll(".tile .job-ctrl.play-arm").forEach(function (el) { el.remove(); });
     }
     paintRail();
   }
 
-  function selectedIds() {
-    return Object.keys(selected);
+  function paintCountFace(btn, n) {
+    const face = btn.querySelector(".ins-face");
+    if (!face) return;
+    if (n === 0) {
+      face.innerHTML = LOOP;
+      btn.setAttribute("aria-label", "循環");
+      btn.title = "循環";
+    } else {
+      face.textContent = "×" + n;
+      btn.setAttribute("aria-label", "×" + n);
+      btn.title = "×" + n;
+    }
   }
 
   function paintRail() {
     if (!rail) return;
-    if (countId) {
-      rail.hidden = false;
-      rail.innerHTML = "";
-      const cycle = insButton("rail-loop", PLAY, "×" + countLoops);
-      const face = cycle.querySelector(".ins-face");
-      if (face) face.textContent = "×" + countLoops;
-      cycle.addEventListener("click", function () {
-        countLoops = nextLoop(countLoops);
-        if (face) face.textContent = "×" + countLoops;
-      });
-      const go = document.createElement("button");
-      go.type = "button";
-      go.className = "tag-apply";
-      go.innerHTML = '<span class="tag-apply-face">確認</span>';
-      go.addEventListener("click", function () {
-        const id = countId;
-        const loops = countLoops;
-        countId = "";
-        paintRail();
-        goSchedAndPlay(id, loops);
-      });
-      rail.appendChild(cycle);
-      rail.appendChild(go);
-      return;
-    }
-    const ids = selectedIds();
-    if (!ids.length || hostTab !== "sched") {
+    if (hostTab !== "sched" || selectedPick === "") {
       rail.hidden = true;
       rail.innerHTML = "";
+      document.documentElement.classList.remove("has-rail");
       return;
     }
+    const tile = feed && feed.querySelector('.tile[data-pick="' + selectedPick + '"]');
+    countLoops = tile ? Number(tile.dataset.loops) : 1;
+    if (countLoops !== 0 && LOOP_CHOICES.indexOf(countLoops) < 0) countLoops = 1;
     rail.hidden = false;
+    document.documentElement.classList.add("has-rail");
     rail.innerHTML = "";
+    const cycle = insButton("rail-loop", countLoops === 0 ? LOOP : PLAY, countLoops === 0 ? "循環" : "×" + countLoops);
+    paintCountFace(cycle, countLoops);
+    cycle.addEventListener("click", async function () {
+      countLoops = nextLoop(countLoops);
+      paintCountFace(cycle, countLoops);
+      if (tile) tile.dataset.loops = String(countLoops);
+      await postNight({ op: "loops", index: selectedPick, loops: countLoops });
+      loadShelf();
+    });
     const trash = insButton("rail-trash", TRASH, "丟掉");
     trash.addEventListener("click", async function () {
-      const id = ids[0];
+      const idx = selectedPick;
       clearSelect();
-      const x = await postNight({ op: "remove", id: id });
+      const x = await postNight({ op: "remove", index: idx });
       const cur = x.j || {};
       const player = playerEl();
       if (cur.id && userStarted && !cur.paused && !cur.done) {
@@ -468,11 +460,32 @@
         }
         await postNight({ op: "play" });
       }
-      clearSelect();
       loadShelf();
     });
-    rail.appendChild(trash);
+    rail.appendChild(cycle);
     rail.appendChild(toggle);
+    rail.appendChild(trash);
+  }
+
+  function applySchedPick() {
+    if (!feed || hostTab !== "sched") return;
+    const tiles = feed.querySelectorAll(".tile");
+    tiles.forEach(function (el, i) {
+      if (el.dataset.pick == null || el.dataset.pick === "") el.dataset.pick = String(i);
+    });
+    if (tiles.length === 0) selectedPick = "";
+    else if (tiles.length === 1) selectedPick = tiles[0].dataset.pick;
+    else if (selectedPick !== "") {
+      let found = false;
+      tiles.forEach(function (el) {
+        if (el.dataset.pick === String(selectedPick)) found = true;
+      });
+      if (!found) selectedPick = "";
+    }
+    tiles.forEach(function (el) {
+      el.classList.toggle("is-pick", selectedPick !== "" && el.dataset.pick === String(selectedPick));
+    });
+    paintRail();
   }
 
   async function goSchedAndPlay(id, loops) {
@@ -516,25 +529,10 @@
     play.addEventListener("click", function (ev) {
       ev.preventDefault();
       ev.stopPropagation();
-      if (holdFired) {
-        holdFired = false;
-        return;
-      }
       armedId = "";
       play.remove();
       goSchedAndPlay(item.id, 1);
     });
-    play.addEventListener("pointerdown", function (ev) {
-      ev.stopPropagation();
-      holdTimer = window.setTimeout(function () {
-        holdFired = true;
-        countId = item.id;
-        countLoops = 1;
-        paintRail();
-      }, 480);
-    });
-    play.addEventListener("pointerup", function () { window.clearTimeout(holdTimer); });
-    play.addEventListener("pointercancel", function () { window.clearTimeout(holdTimer); });
     btn.appendChild(play);
   }
 
@@ -544,6 +542,8 @@
     btn.type = "button";
     btn.className = "tile";
     btn.dataset.id = item.id;
+    if (item.pick != null) btn.dataset.pick = String(item.pick);
+    if (item.loops != null) btn.dataset.loops = String(item.loops);
     if (item.has_cover) {
       const img = document.createElement("img");
       img.alt = item.title || "";
@@ -592,14 +592,6 @@
           openUnfavAsk(item.id);
           return;
         }
-        if (hostTab === "sched") {
-          selecting = true;
-          selected = {};
-          selected[item.id] = true;
-          if (feed) feed.querySelectorAll(".tile.is-on").forEach(function (el) { el.classList.remove("is-on"); });
-          btn.classList.add("is-on");
-          paintRail();
-        }
       }, 480);
     });
     function cancelHold() {
@@ -615,7 +607,11 @@
         return;
       }
       if (ev.target.closest && ev.target.closest(".job-ctrl")) return;
-      if (hostTab === "sched") return;
+      if (hostTab === "sched") {
+        selectedPick = btn.dataset.pick != null ? btn.dataset.pick : "0";
+        applySchedPick();
+        return;
+      }
       if (!item.ready) return;
       if (armedId === item.id) {
         goSchedAndPlay(item.id, 1);
@@ -716,12 +712,14 @@
       p.textContent = "沒對到，再找一次";
       body.appendChild(p);
     }
+    const row = document.createElement("div");
+    row.className = "tag-row";
     hits.forEach(function (hit) {
-      const row = document.createElement("button");
-      row.type = "button";
-      row.className = "tag-chip";
-      row.textContent = hit.title;
-      row.addEventListener("click", async function () {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "tag-chip";
+      chip.textContent = hit.title;
+      chip.addEventListener("click", async function () {
         if (lastSearchQ) {
           await window.FamiGate.api("/api/alias", key, {
             method: "POST",
@@ -732,8 +730,9 @@
         closeFind();
         goSchedAndPlay(hit.id, 1);
       });
-      body.appendChild(row);
+      row.appendChild(chip);
     });
+    if (hits.length) body.appendChild(row);
     finding = true;
     mask.hidden = false;
     paintFindMode();
@@ -836,6 +835,7 @@
     catalog = {};
     (x.j.items || []).forEach(function (it) { feed.appendChild(tileEl(it)); });
     if (tagBoard) tagBoard.hidden = false;
+    if (hostTab === "sched") applySchedPick();
     layoutStage();
   }
 
@@ -854,6 +854,7 @@
     showHits(x.j, q);
   }
 
+  /* 封存：語音輸入後續再開發。門面不掛麥克風。 */
   async function searchBlob(blob, name) {
     const fd = new FormData();
     fd.append("file", blob, name || "speech.webm");
@@ -869,7 +870,6 @@
   function listenVoice() {
     if (busy) return;
     busy = true;
-    if (micBtn) micBtn.classList.add("is-run");
     const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder) {
       navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
@@ -879,27 +879,18 @@
         rec.onstop = function () {
           stream.getTracks().forEach(function (t) { t.stop(); });
           const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
-          searchBlob(blob, "speech.webm").finally(function () {
-            busy = false;
-            if (micBtn) micBtn.classList.remove("is-run");
-          });
+          searchBlob(blob, "speech.webm").finally(function () { busy = false; });
         };
         rec.start();
         window.setTimeout(function () { if (rec.state === "recording") rec.stop(); }, 3200);
       }).catch(function () {
         if (Speech) webSpeech(Speech);
-        else {
-          busy = false;
-          if (micBtn) micBtn.classList.remove("is-run");
-        }
+        else busy = false;
       });
       return;
     }
     if (Speech) webSpeech(Speech);
-    else {
-      busy = false;
-      if (micBtn) micBtn.classList.remove("is-run");
-    }
+    else busy = false;
   }
 
   function webSpeech(Speech) {
@@ -908,15 +899,9 @@
     rec.interimResults = false;
     rec.onresult = function (ev) {
       const q = ev.results && ev.results[0] && ev.results[0][0] ? ev.results[0][0].transcript : "";
-      searchText(q).finally(function () {
-        busy = false;
-        if (micBtn) micBtn.classList.remove("is-run");
-      });
+      searchText(q).finally(function () { busy = false; });
     };
-    rec.onerror = function () {
-      busy = false;
-      if (micBtn) micBtn.classList.remove("is-run");
-    };
+    rec.onerror = function () { busy = false; };
     rec.start();
   }
 
@@ -1108,10 +1093,6 @@
     }
   });
 
-  if (micBtn) micBtn.addEventListener("click", function (ev) {
-    ev.preventDefault();
-    listenVoice();
-  });
   const findClose = document.getElementById("findClose");
   if (findClose) findClose.addEventListener("click", closeFind);
   const actClose = document.getElementById("actClose");

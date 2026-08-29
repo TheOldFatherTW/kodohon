@@ -838,6 +838,44 @@ html.has-rail .feed {
   box-shadow: 0 0 0 2px #fff;
   pointer-events: none;
 }
+.tile.is-job.is-pick::after {
+  z-index: 6;
+}
+.tile.is-run.is-pick::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  width: 200vw;
+  height: 200vw;
+  border-radius: 0;
+  background: conic-gradient(
+    from 0deg,
+    #feda75 0deg,
+    #fa7e1e 70deg,
+    #d62976 140deg,
+    #962fbf 210deg,
+    #4f5bd5 280deg,
+    #feda75 360deg
+  );
+  animation: tag-apply-spin 2.4s linear infinite;
+  pointer-events: none;
+}
+.tile.is-run.is-pick::after {
+  inset: auto;
+  right: 8px;
+  bottom: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  z-index: 6;
+  background: var(--accent) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' d='M6.5 12.5l3.2 3.3 8-8.4'/></svg>") center / 16px 16px no-repeat;
+  box-shadow: 0 0 0 2px #fff;
+  animation: none;
+  pointer-events: none;
+}
 .home-install {
   position: fixed;
   inset: 0;
@@ -1131,6 +1169,12 @@ label { display: block; margin: 18px 0 8px; color: var(--mute); text-align: left
 }
 .list-tag-sheet .tag-row {
   margin: 0 0 16px;
+}
+#findHits .tag-row {
+  margin-top: 16px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
 }
 button.tag-chip {
   margin: 0;
@@ -1540,7 +1584,6 @@ html.is-reading body {
   gap: 8px;
 }
 .tag-board .mode-bar { flex: 1; min-width: 0; }
-#mic-btn { flex: 0 0 auto; }
 .night-row {
   display: flex;
   align-items: center;
