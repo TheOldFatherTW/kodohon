@@ -19,7 +19,7 @@
     const svg = document.createElementNS(SVG_NS, "svg");
     svg.setAttribute("viewBox", "0 0 100 12");
     svg.setAttribute("preserveAspectRatio", "none");
-    svg.setAttribute("class", "liss-bar-svg");
+    svg.setAttribute("class", "story-bar-svg");
     svg.setAttribute("aria-hidden", "true");
     const track = document.createElementNS(SVG_NS, "path");
     track.setAttribute("d", "M 2 6 L 98 6");

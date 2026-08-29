@@ -997,8 +997,8 @@
     window.FamiGate.blockWebChrome();
     window.FamiGate.bindKeyboard();
     setBoot(true, "正在連接故事櫃…");
-    key = window.FAMILY_VIEW_KEY || window.FamiGate.currentKey();
-    if (window.FAMILY_FORCE_INVITE) key = window.FAMILY_URL_KEY || "";
+    key = window.KODOHON_VIEW_KEY || window.FamiGate.currentKey();
+    if (window.KODOHON_FORCE_INVITE) key = window.KODOHON_URL_KEY || "";
     try {
       if (!window.FamiGate.origin()) {
         if (statusEl) statusEl.textContent = "維護中,請5分鐘後再試";
@@ -1008,7 +1008,7 @@
       await window.FamiGate.api("/api/public", "", { timeout: 8000 }).catch(function () { return null; });
       if (!key) {
         setBoot(false);
-        if (window.FAMILY_FORCE_INVITE || window.FAMILY_URL_KEY) showInvite();
+        if (window.KODOHON_FORCE_INVITE || window.KODOHON_URL_KEY) showInvite();
         else if (statusEl) statusEl.textContent = "請用邀請連結打開";
         return;
       }
@@ -1072,7 +1072,7 @@
   if (nameForm) nameForm.addEventListener("submit", async function (e) {
     e.preventDefault();
     if (busy) return;
-    const inviteKey = window.FAMILY_URL_KEY || window.FamiGate.currentKey();
+    const inviteKey = window.KODOHON_URL_KEY || window.FamiGate.currentKey();
     if (!inviteKey) {
       if (nameErr) nameErr.textContent = "請用邀請連結打開";
       return;

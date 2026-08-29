@@ -21,14 +21,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="./app.css?v=2"/>
+<link rel="stylesheet" href="./app.css?v=9"/>
 <script src="./config.js?v=1787997357"></script>
 <script>
 (function () {
   var q = new URLSearchParams(location.search).get("k") || "";
-  window.FAMILY_FORCE_INVITE = true;
-  window.FAMILY_URL_KEY = /^[A-Za-z0-9_-]{8,128}$/.test(q) ? q : "";
-  window.FAMILY_VIEW_KEY = "";
+  window.KODOHON_FORCE_INVITE = true;
+  window.KODOHON_URL_KEY = /^[A-Za-z0-9_-]{8,128}$/.test(q) ? q : "";
+  window.KODOHON_VIEW_KEY = "";
   var origin = window.VAULT_ORIGIN;
   if (origin) {
     var link = document.createElement("link");
@@ -68,8 +68,8 @@
     </div>
   </div>
 </div>
-<script src="./mark.js?v=5"></script>
+<script src="./mark.js?v=6"></script>
 <script src="./gate.js?v=1"></script>
-<script src="./door.js?v=1"></script>
+<script src="./door.js?v=8"></script>
 </body>
 </html>

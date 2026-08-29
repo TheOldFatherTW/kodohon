@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="./app.css?v=7"/>
+<link rel="stylesheet" href="./app.css?v=9"/>
 <script src="./config.js?v=1787997357"></script>
 <script>
 (function () {
@@ -45,8 +45,8 @@
   } catch (e) {}
   var fromUrl = KEY_RE.test(q) ? q : KEY_RE.test(h) ? h : "";
   var token = fromUrl || (KEY_RE.test(stored) ? stored : "") || (KEY_RE.test(cookie) ? cookie : "");
-  window.FAMILY_URL_KEY = fromUrl;
-  window.FAMILY_VIEW_KEY = token;
+  window.KODOHON_URL_KEY = fromUrl;
+  window.KODOHON_VIEW_KEY = token;
   if (token) {
     try { localStorage.setItem("kodohon.viewKey", token); } catch (e) {}
     if (typeof navigator.standalone === "boolean" && !navigator.standalone) {
@@ -180,8 +180,8 @@
   </button>
   <iframe id="reader-frame" title="聽故事" src="about:blank"></iframe>
 </div>
-<script src="./mark.js?v=5"></script>
+<script src="./mark.js?v=6"></script>
 <script src="./gate.js?v=3"></script>
-<script src="./door.js?v=7"></script>
+<script src="./door.js?v=8"></script>
 </body>
 </html>

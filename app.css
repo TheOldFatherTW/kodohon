@@ -124,13 +124,7 @@ html, body {
   display: none !important;
 }
 .profile { text-align: center; }
-.lissajous {
-  width: 88px;
-  height: 88px;
-  margin: 0 auto 12px;
-  color: var(--accent);
-}
-.liss-svg, .liss-bar-svg { width: 100%; height: 100%; display: block; }
+.story-bar-svg { width: 100%; height: 100%; display: block; }
 h1.brand {
   margin: 0;
   font-family: Unbounded, "Segoe UI", sans-serif;
@@ -140,7 +134,6 @@ h1.brand {
   color: var(--rose);
 }
 .hall.with-feed:not(.is-invite):not(.is-booting) h1.brand { display: none !important; }
-.hall.with-feed:not(.is-invite):not(.is-booting) .lissajous { display: none !important; }
 .status { margin: 22px 0 0; min-height: 1.5em; font-size: 15px; color: var(--mute); }
 .hall.with-feed.is-booting .status {
   font-size: clamp(18px, 5.4vw, 22px);
@@ -149,6 +142,12 @@ h1.brand {
 }
 .invite-panel { width: min(420px, 92vw); margin: 4px auto 0; text-align: center; }
 .invite-hey { margin: 18px 0 0; font-size: clamp(18px, 5.4vw, 22px); font-weight: 600; }
+.invite-safari[hidden] { display: none !important; }
+.invite-safari {
+  margin: 20px 0 0;
+  font-size: 16px;
+  color: var(--mute);
+}
 button {
   font: inherit;
   color: inherit;
@@ -662,26 +661,6 @@ html.has-rail .feed {
   color: transparent;
   /* 多選也維持 manipulation。改 none 時 iOS 會長押變 pointercancel，再當成輕點把同一本取消。 */
   touch-action: manipulation;
-}
-.tile.tile-add {
-  background: #f7f7f7;
-  color: var(--mute);
-  box-shadow: none;
-  border: 2px dashed #c8c8c8;
-}
-.tile .tile-plus {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2;
-  pointer-events: none;
-}
-.tile .tile-plus svg {
-  width: 36px;
-  height: 36px;
-  color: #8e8e8e;
 }
 .tile-heart {
   position: absolute;
@@ -1312,9 +1291,6 @@ button.tag-chip {
   -webkit-overflow-scrolling: touch;
   padding-top: calc(8px + env(safe-area-inset-top, 0px));
   padding-bottom: 8px;
-}
-.kb-up .hall.is-invite .lissajous {
-  display: none;
 }
 .kb-up .batch-tag-mask {
   top: var(--vv-top, 0px);
