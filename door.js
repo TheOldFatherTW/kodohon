@@ -529,9 +529,23 @@
   async function goSchedAndPlay(id, loops) {
     const before = await window.FamiGate.api("/api/night", key, { timeout: 8000 });
     const idle = !before.j || !before.j.id || before.j.done || before.j.paused || !userStarted;
-    const state = await postNight({ op: "enqueue", id: id, loops: loops || 1 });
+    await postNight({ op: "enqueue", id: id, loops: loops || 1 });
+    if (idle) {
+      const now = await window.FamiGate.api("/api/night", key, { timeout: 8000 });
+      const picks = (now.j && now.j.night && now.j.night.picks) || [];
+      let idx = picks.length - 1;
+      for (let i = picks.length - 1; i >= 0; i--) {
+        if (String(picks[i].id) === String(id)) {
+          idx = i;
+          break;
+        }
+      }
+      const played = await postNight({ op: "play_pick", index: idx });
+      selectedPick = "0";
+      const nid = (played.j && played.j.id) || id;
+      loadAudio(nid, true);
+    }
     pickTab("sched");
-    if (idle && state.j && state.j.id) loadAudio(state.j.id, true);
   }
 
   function decorateJob(el, item) {
