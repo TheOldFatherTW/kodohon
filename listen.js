@@ -38,6 +38,18 @@
     return origin + "/audio?id=" + encodeURIComponent(id) + "&k=" + encodeURIComponent(key);
   }
 
+  function hush(el) {
+    if (!el) return;
+    try { el.pause(); } catch (e) {}
+    try { el.muted = true; } catch (e) {}
+  }
+
+  function hushStandby() {
+    const wait = standbyEl();
+    const live = playerEl();
+    if (wait && wait !== live) hush(wait);
+  }
+
   function rememberNight(j) {
     if (j && Object.prototype.hasOwnProperty.call(j, "next_id")) {
       nextStoryId = j.next_id || "";
@@ -58,11 +70,11 @@
     if (p && p.then) {
       p.then(function () {
         wait.pause();
-        wait.muted = false;
-      }).catch(function () { wait.muted = false; });
+        wait.muted = true;
+      }).catch(function () { wait.muted = true; });
     } else {
       try { wait.pause(); } catch (e) {}
-      wait.muted = false;
+      wait.muted = true;
     }
   }
 
@@ -71,6 +83,7 @@
     const wait = standbyEl();
     if (!nid || !wait || nid === storyIdFrom(playerEl())) return;
     if (storyIdFrom(wait) === nid && (wait.currentSrc || wait.src)) return;
+    wait.muted = true;
     wait.src = audioUrl(nid);
     wait.load();
   }
@@ -118,7 +131,11 @@
     }
     try { sessionStorage.setItem("kodohon.listening", JSON.stringify({ id: id, k: key })); } catch (e) {}
     if (userStarted) {
-      if (!already) player.play().catch(function () {});
+      if (!already) {
+        player.muted = false;
+        player.play().catch(function () {});
+      }
+      hushStandby();
       paintFace(true);
       armStandby();
     } else {
@@ -150,11 +167,16 @@
     currentId = nid;
     if (nid === storyIdFrom(live)) {
       try { live.currentTime = 0; } catch (e) {}
+      live.muted = false;
       live.play().catch(function () {});
+      hushStandby();
     } else if (wait && storyIdFrom(wait) === nid) {
-      live.pause();
+      hush(live);
       liveIsA = !liveIsA;
-      playerEl().play().catch(function () {});
+      const now = playerEl();
+      now.muted = false;
+      now.play().catch(function () {});
+      hush(live);
     } else {
       showStory(nid);
     }
@@ -198,15 +220,20 @@
   if (catcher) catcher.addEventListener("click", closeMenu);
   playBtn.addEventListener("click", function () {
     const player = playerEl();
-    if (player.paused) {
+    const wait = standbyEl();
+    const waitWasOn = !!(wait && !wait.paused);
+    if (!player.paused || waitWasOn) {
+      player.pause();
+      hushStandby();
+      paintFace(false);
+    } else {
       userStarted = true;
       primePlayers(currentId);
+      player.muted = false;
       player.play();
+      hushStandby();
       paintFace(true);
       armStandby();
-    } else {
-      player.pause();
-      paintFace(false);
     }
   });
   nextBtn.addEventListener("click", function () { nextStory(); });
@@ -223,11 +250,19 @@
       }
     });
     el.addEventListener("playing", function () {
-      if (el !== playerEl()) return;
+      if (el !== playerEl()) {
+        hush(el);
+        return;
+      }
+      hushStandby();
       armStandby();
     });
     el.addEventListener("play", function () {
-      if (el !== playerEl()) return;
+      if (el !== playerEl()) {
+        hush(el);
+        return;
+      }
+      hushStandby();
       paintFace(true);
     });
     el.addEventListener("pause", function () {
@@ -237,6 +272,14 @@
   }
   bindPlayer(document.getElementById("player"));
   bindPlayer(document.getElementById("player-next"));
+  function onPageWake() {
+    if (!userStarted) return;
+    hushStandby();
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) onPageWake();
+  });
+  window.addEventListener("pageshow", onPageWake);
 
   if (currentId) {
     window.FamiGate.api("/api/night", key, { timeout: 8000 }).then(function (x) {
