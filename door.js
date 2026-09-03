@@ -356,6 +356,23 @@
     return window.FamiGate.origin() + "/audio?id=" + encodeURIComponent(id) + "&k=" + encodeURIComponent(key);
   }
 
+  function hush(el) {
+    if (!el) return;
+    try { el.pause(); } catch (e) {}
+    try { el.muted = true; } catch (e) {}
+  }
+
+  function hushStandby() {
+    const wait = standbyEl();
+    const live = playerEl();
+    if (wait && wait !== live) hush(wait);
+  }
+
+  function paintPlaybackState(playing) {
+    if (!navigator.mediaSession) return;
+    try { navigator.mediaSession.playbackState = playing ? "playing" : "paused"; } catch (e) {}
+  }
+
   function rememberNight(j) {
     if (j && Object.prototype.hasOwnProperty.call(j, "next_id")) {
       nextStoryId = j.next_id || "";
@@ -376,11 +393,11 @@
     if (p && p.then) {
       p.then(function () {
         wait.pause();
-        wait.muted = false;
-      }).catch(function () { wait.muted = false; });
+        wait.muted = true;
+      }).catch(function () { wait.muted = true; });
     } else {
       try { wait.pause(); } catch (e) {}
-      wait.muted = false;
+      wait.muted = true;
     }
   }
 
@@ -388,6 +405,7 @@
     const el = standbyEl();
     if (!el || !id) return;
     if (storyIdFrom(el) === id && (el.currentSrc || el.src)) return;
+    el.muted = true;
     el.src = audioUrl(id);
     el.load();
   }
@@ -431,12 +449,17 @@
     const wait = standbyEl();
     if (nid === playerStoryId()) {
       try { live.currentTime = 0; } catch (e) {}
+      live.muted = false;
       live.play().catch(function () {});
+      hushStandby();
     } else if (wait && storyIdFrom(wait) === nid) {
       waitingId = nid;
-      live.pause();
+      hush(live);
       liveIsA = !liveIsA;
-      playerEl().play().catch(function () {});
+      const now = playerEl();
+      now.muted = false;
+      now.play().catch(function () {});
+      hush(live);
     } else {
       loadAudio(nid, true);
     }
@@ -511,7 +534,9 @@
     player.src = audioUrl(id);
     player.load();
     if (play) {
+      player.muted = false;
       player.play().catch(function () {});
+      hushStandby();
       armStandby();
     }
   }
@@ -591,16 +616,24 @@
       loadShelf();
     });
     const sid = tile && tile.dataset.id;
-    const live = !!(userStarted && playerEl() && !playerEl().paused && sid && playerStoryId() === sid);
+    const wait = standbyEl();
+    const live = !!(userStarted && sid && (
+      (playerEl() && !playerEl().paused && playerStoryId() === sid) ||
+      (wait && !wait.paused && storyIdFrom(wait) === sid)
+    ));
     const toggle = insButton("job-ctrl", live ? PAUSE : PLAY, live ? "暫停" : "播放");
     toggle.addEventListener("click", async function () {
       const player = playerEl();
       const pick = selectedPick;
       const here = tile && tile.dataset.id;
+      const waitNow = standbyEl();
+      const waitOn = !!(waitNow && !waitNow.paused);
       if (here) primePlayers(here);
-      if (player && !player.paused && player.src && here && playerStoryId() === here) {
-        player.pause();
+      if (userStarted && here && (waitOn || (player && !player.paused && player.src && playerStoryId() === here))) {
+        if (player) player.pause();
+        hushStandby();
         waitingId = "";
+        paintPlaybackState(false);
         await postNight({ op: "pause" });
       } else {
         userStarted = true;
@@ -614,8 +647,11 @@
           : await postNight({ op: "play" });
         selectedPick = "0";
         const nid = (now.j && now.j.id) || here;
-        if (sameSrc) player.play().catch(function () {});
-        else if (nid) loadAudio(nid, true);
+        if (sameSrc) {
+          player.muted = false;
+          player.play().catch(function () {});
+          hushStandby();
+        } else if (nid) loadAudio(nid, true);
         armStandby();
       }
       loadShelf();
@@ -1335,8 +1371,12 @@
       }
     });
     el.addEventListener("playing", function () {
-      if (el !== playerEl()) return;
+      if (el !== playerEl()) {
+        hush(el);
+        return;
+      }
       waitingId = "";
+      hushStandby();
       armStandby();
       paintNowPlaying(playerStoryId());
       if (hostTab === "sched") loadShelf();
@@ -1350,11 +1390,17 @@
       }
     });
     el.addEventListener("play", function () {
-      if (el !== playerEl()) return;
+      if (el !== playerEl()) {
+        hush(el);
+        return;
+      }
+      hushStandby();
+      paintPlaybackState(true);
       if (hostTab === "sched") paintRail();
     });
     el.addEventListener("pause", function () {
       if (el !== playerEl() || handingOff) return;
+      paintPlaybackState(false);
       if (hostTab === "sched") {
         paintSchedHuds();
         paintRail();
@@ -1363,15 +1409,39 @@
   }
   bindPlayer(document.getElementById("player"));
   bindPlayer(document.getElementById("player-next"));
+  function onPageWake() {
+    if (!userStarted) return;
+    hushStandby();
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) onPageWake();
+  });
+  window.addEventListener("pageshow", onPageWake);
   if (navigator.mediaSession) {
     try {
       navigator.mediaSession.setActionHandler("play", function () {
         const p = playerEl();
-        if (p) p.play().catch(function () {});
+        const wait = standbyEl();
+        const waitWasOn = !!(wait && !wait.paused);
+        hushStandby();
+        if (!p) return;
+        if (!p.paused) {
+          paintPlaybackState(true);
+          return;
+        }
+        if (waitWasOn) {
+          paintPlaybackState(false);
+          return;
+        }
+        p.muted = false;
+        p.play().catch(function () {});
+        paintPlaybackState(true);
       });
       navigator.mediaSession.setActionHandler("pause", function () {
         const p = playerEl();
         if (p) p.pause();
+        hushStandby();
+        paintPlaybackState(false);
       });
     } catch (e) {}
   }
