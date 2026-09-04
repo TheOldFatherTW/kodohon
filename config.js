@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://relatives-worker-participated-herself.trycloudflare.com";
+window.VAULT_ORIGIN = "https://lighter-vbulletin-office-format.trycloudflare.com";
