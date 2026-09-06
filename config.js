@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://lighter-vbulletin-office-format.trycloudflare.com";
+window.VAULT_ORIGIN = "https://compensation-promotions-florence-python.trycloudflare.com";
