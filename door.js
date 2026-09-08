@@ -30,7 +30,11 @@
   const TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8V6.8A1.8 1.8 0 0 1 9.8 5h4.4A1.8 1.8 0 0 1 16 6.8V8M5 8h14M9 11v7M12 11v7M15 11v7M7 8l.8 12.2A1.6 1.6 0 0 0 9.4 22h5.2a1.6 1.6 0 0 0 1.6-1.8L17 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const SHUFFLE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h4.2l7.6 10H20M16.5 7H20M4 17h4.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.2 4.8L20 7l-3.8 2.2M16.2 14.8L20 17l-3.8 2.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const LOOP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h8.5a4 4 0 0 1 0 8H7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M9.2 4.8L6.4 7l2.8 2.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const LIST = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12M6 12h12M6 17h8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+  const GRID = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="13.5" y="5" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="5" y="13.5" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="13.5" y="13.5" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>';
+  const HEART_RAIL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20C10.5 18.4 7.3 15.8 5.4 11.9C4 9.1 5.2 6 8.4 6c1.8 0 3 1.1 3.6 2.2C12.6 7.1 13.8 6 15.6 6c3.2 0 4.4 3.1 3 5.9C16.7 15.8 13.5 18.4 12 20Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
   const LOOP_CHOICES = [1, 2, 3, 0];
+  const LAYOUT_KEY = "kodohon.layout";
   let key = "";
   let busy = false;
   let settingsWrap = null;
@@ -63,6 +67,10 @@
   let liveIsA = true;
   let playersPrimed = false;
   let handingOff = false;
+  let listMode = false;
+  let lastItems = [];
+  let layoutBtn = null;
+  try { listMode = localStorage.getItem(LAYOUT_KEY) === "list"; } catch (e) {}
 
   function setBoot(on, text) {
     if (!hall) return;
@@ -473,8 +481,73 @@
     });
   }
 
+  function storyLive(sid) {
+    if (!userStarted || !sid) return false;
+    const wait = standbyEl();
+    return !!(
+      (playerEl() && !playerEl().paused && playerStoryId() === sid) ||
+      (wait && !wait.paused && storyIdFrom(wait) === sid)
+    );
+  }
+
+  function applyLayoutClass() {
+    if (feed) feed.classList.toggle("news-list", !!listMode);
+    if (layoutBtn) {
+      layoutBtn.classList.toggle("is-live", !!listMode);
+      const face = layoutBtn.querySelector(".ins-face");
+      if (face) face.innerHTML = listMode ? GRID : LIST;
+      layoutBtn.setAttribute("aria-label", listMode ? "封面格子" : "橫條排列");
+      layoutBtn.title = listMode ? "封面格子" : "橫條排列";
+    }
+    if (listMode) {
+      if (rail) {
+        rail.hidden = true;
+        rail.innerHTML = "";
+      }
+      document.documentElement.classList.remove("has-rail");
+    }
+  }
+
+  function paintListPlay() {
+    if (!feed || !listMode || hostTab !== "sched") return;
+    feed.querySelectorAll(".news-row").forEach(function (row) {
+      const toggle = row.querySelector(".row-play");
+      if (!toggle) return;
+      const live = storyLive(row.dataset.id);
+      const face = toggle.querySelector(".ins-face");
+      if (face) face.innerHTML = live ? PAUSE : PLAY;
+      toggle.setAttribute("aria-label", live ? "暫停" : "播放");
+      toggle.title = live ? "暫停" : "播放";
+    });
+  }
+
+  function paintFeed(items) {
+    if (!feed) return;
+    if (items) lastItems = items;
+    applyLayoutClass();
+    feed.innerHTML = "";
+    catalog = {};
+    lastItems.forEach(function (it) {
+      feed.appendChild(listMode ? rowEl(it) : tileEl(it));
+    });
+    if (tagBoard) tagBoard.hidden = false;
+    if (hostTab === "sched" && !listMode) applySchedPick();
+    else if (hostTab === "sched") paintListPlay();
+    layoutStage();
+  }
+
+  function toggleLayout() {
+    listMode = !listMode;
+    try { localStorage.setItem(LAYOUT_KEY, listMode ? "list" : "grid"); } catch (e) {}
+    paintFeed();
+  }
+
   function paintSchedHuds() {
     if (!feed || hostTab !== "sched") return;
+    if (listMode) {
+      paintListPlay();
+      return;
+    }
     feed.querySelectorAll(".tile.is-job").forEach(function (el) {
       decorateJob(el, {
         id: el.dataset.id,
@@ -580,7 +653,7 @@
 
   function paintRail() {
     if (!rail) return;
-    if (hostTab !== "sched" || selectedPick === "") {
+    if (listMode || hostTab !== "sched" || selectedPick === "") {
       rail.hidden = true;
       rail.innerHTML = "";
       document.documentElement.classList.remove("has-rail");
@@ -850,6 +923,119 @@
     return btn;
   }
 
+  function rowEl(item) {
+    catalog[item.id] = item;
+    const row = document.createElement("div");
+    row.className = "news-row";
+    row.dataset.id = item.id;
+    if (item.pick != null) row.dataset.pick = String(item.pick);
+    if (item.loops != null) row.dataset.loops = String(item.loops);
+    const face = document.createElement("div");
+    face.className = "row-face";
+    const title = document.createElement("strong");
+    title.textContent = item.title || "";
+    const ops = document.createElement("div");
+    ops.className = "row-ops";
+    if (hostTab === "sched") {
+      let loops = Number(item.loops);
+      if (loops !== 0 && LOOP_CHOICES.indexOf(loops) < 0) loops = 1;
+      const cycle = insButton("row-loop", loops === 0 ? LOOP : PLAY, loops === 0 ? "循環" : "×" + loops);
+      paintCountFace(cycle, loops);
+      cycle.addEventListener("click", async function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        loops = nextLoop(loops);
+        paintCountFace(cycle, loops);
+        row.dataset.loops = String(loops);
+        await postNight({ op: "loops", index: row.dataset.pick, loops: loops });
+        loadShelf();
+      });
+      const live = storyLive(item.id);
+      const toggle = insButton("row-play", live ? PAUSE : PLAY, live ? "暫停" : "播放");
+      toggle.addEventListener("click", async function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const pick = row.dataset.pick;
+        const sid = item.id;
+        const player = playerEl();
+        if (sid) primePlayers(sid);
+        const waitNow = standbyEl();
+        const waitOn = !!(waitNow && !waitNow.paused);
+        if (userStarted && sid && (waitOn || (player && !player.paused && player.src && playerStoryId() === sid))) {
+          if (player) player.pause();
+          hushStandby();
+          waitingId = "";
+          paintPlaybackState(false);
+          await postNight({ op: "pause" });
+        } else {
+          userStarted = true;
+          const sameSrc = !!(sid && player && player.src && playerStoryId() === sid);
+          if (!sameSrc && sid) waitingId = sid;
+          const now = sid
+            ? await postNight({ op: "play_pick", index: pick })
+            : await postNight({ op: "play" });
+          selectedPick = "0";
+          const nid = (now.j && now.j.id) || sid;
+          if (sameSrc) {
+            player.muted = false;
+            player.play().catch(function () {});
+            hushStandby();
+          } else if (nid) loadAudio(nid, true);
+          armStandby();
+        }
+        loadShelf();
+      });
+      const trash = insButton("row-trash", TRASH, "丟掉");
+      trash.addEventListener("click", async function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const idx = row.dataset.pick;
+        clearSelect();
+        const x = await postNight({ op: "remove", index: idx });
+        const cur = x.j || {};
+        const player = playerEl();
+        if (cur.id && userStarted && !cur.paused && !cur.done) {
+          if (!player || !player.src || player.paused) loadAudio(cur.id, true);
+        } else if (!cur.id || cur.done) {
+          stopAudio();
+        }
+        loadShelf();
+      });
+      ops.appendChild(cycle);
+      ops.appendChild(toggle);
+      ops.appendChild(trash);
+    } else {
+      const play = insButton("row-play", PLAY, "播放");
+      play.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (!item.ready) return;
+        goSchedAndPlay(item.id, 1);
+      });
+      const loved = !!item.favorite;
+      const heart = insButton("row-heart" + (loved ? " is-loved" : ""), loved ? HEART : HEART_RAIL, loved ? "取消最愛" : "加入最愛");
+      heart.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (loved) {
+          openUnfavAsk(item.id);
+          return;
+        }
+        window.FamiGate.api("/api/fav", key, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: item.id, on: true }),
+        }).then(function () { loadShelf(); });
+      });
+      ops.appendChild(play);
+      ops.appendChild(heart);
+    }
+    face.appendChild(title);
+    face.appendChild(ops);
+    row.appendChild(face);
+    return row;
+  }
+
   function paintFindMode() {
     const bar = document.getElementById("mode-bar");
     if (!bar) return;
@@ -883,6 +1069,10 @@
       btn.addEventListener("click", function () { pickTab(pair[0]); });
       bar.appendChild(btn);
     });
+    layoutBtn = insButton("layout-toggle", listMode ? GRID : LIST, listMode ? "封面格子" : "橫條排列");
+    layoutBtn.addEventListener("click", function () { toggleLayout(); });
+    bar.appendChild(layoutBtn);
+    applyLayoutClass();
     const findBtn = document.createElement("button");
     findBtn.type = "button";
     findBtn.className = "mode-btn mode-find";
@@ -1060,12 +1250,7 @@
     if (night.shuffle != null) shuffleOn = !!night.shuffle;
     if (night.loop != null) loopOn = !!night.loop;
     paintFlags();
-    feed.innerHTML = "";
-    catalog = {};
-    (x.j.items || []).forEach(function (it) { feed.appendChild(tileEl(it)); });
-    if (tagBoard) tagBoard.hidden = false;
-    if (hostTab === "sched") applySchedPick();
-    layoutStage();
+    paintFeed(x.j.items || []);
   }
 
   async function searchText(q) {
