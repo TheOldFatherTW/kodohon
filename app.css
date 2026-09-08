@@ -1106,6 +1106,7 @@ label { display: block; margin: 18px 0 8px; color: var(--mute); text-align: left
   box-shadow: 0 16px 44px rgba(0, 0, 0, 0.26);
 }
 .list-tag-body {
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -1180,7 +1181,14 @@ button.tag-chip {
   display: flex;
   gap: 8px;
 }
-.ask-actions button {
+.ask-actions:has(> .tag-apply:not([hidden])) {
+  flex-direction: column;
+}
+.ask-actions:has(> .tag-apply:not([hidden])) button:not(.tag-apply) {
+  flex: 0 0 44px;
+  width: 100%;
+}
+.ask-actions button:not(.tag-apply) {
   flex: 1;
   height: 44px;
   border: 0;
@@ -1219,6 +1227,12 @@ button.tag-chip {
 .batch-tag-sheet .tag-apply,
 .list-tag-sheet .tag-apply {
   margin-top: 8px;
+}
+.batch-tag-sheet > .tag-apply,
+.list-tag-sheet > .tag-apply {
+  flex: 0 0 auto;
+  width: 100%;
+  margin-top: auto;
 }
 @media (min-width: 600px) {
   .list-tag-mask {
@@ -1615,9 +1629,12 @@ html.is-reading body {
   display: none !important;
 }
 .ask-actions .tag-apply {
-  flex: 1;
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
   margin: 0;
-  height: 44px;
+  height: 52px;
+  border-radius: 999px;
 }
 
 /* 講故事排列＝MyMoney 消息列殼。不要改沒編號的格子原件。 */
