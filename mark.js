@@ -1,4 +1,4 @@
-/* Product mark for 講故事 — crescent, not rose, not lissajous. */
+/* Product mark for 講故事 — sleepy moon + book, not rose, not lissajous. */
 (function () {
   const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -8,7 +8,7 @@
     const img = document.createElement("img");
     img.className = "story-mark-svg";
     img.alt = "";
-    img.src = "./icons/mark-180.png?v=6";
+    img.src = "./icons/mark-180.png?v=7";
     root.innerHTML = "";
     root.appendChild(img);
   }
