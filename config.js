@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://platform-animated-trance-richards.trycloudflare.com";
+window.VAULT_ORIGIN = "https://annie-styles-region-armor.trycloudflare.com";
