@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://ross-civil-links-spell.trycloudflare.com";
+window.VAULT_ORIGIN = "https://noticed-influence-satisfactory-clerk.trycloudflare.com";
