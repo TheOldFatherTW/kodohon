@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://annie-styles-region-armor.trycloudflare.com";
+window.VAULT_ORIGIN = "https://bowling-machine-waterproof-fact.trycloudflare.com";
