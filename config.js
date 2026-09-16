@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://noticed-influence-satisfactory-clerk.trycloudflare.com";
+window.VAULT_ORIGIN = "https://selected-org-menu-talented.trycloudflare.com";
