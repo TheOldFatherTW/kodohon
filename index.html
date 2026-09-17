@@ -22,15 +22,17 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="./app.css?v=14"/>
-<script src="./config.js?v=1789574216"></script>
+<script src="./config.js?v=1789575001"></script>
 <script>
 (function () {
   var KEY_RE = /^[A-Za-z0-9_-]{8,128}$/;
+  var viewKey = (window.FAMIGATE_CONFIG && window.FAMIGATE_CONFIG.viewKeyStorage) || "kodohon.viewKey";
+  var cookieRe = new RegExp("(?:^|; )" + viewKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "=([^;]*)");
   var stored = "";
-  try { stored = localStorage.getItem("kodohon.viewKey") || ""; } catch (e) {}
+  try { stored = localStorage.getItem(viewKey) || ""; } catch (e) {}
   var cookie = "";
   try {
-    var m = document.cookie.match(/(?:^|; )kodohon\.viewKey=([^;]*)/);
+    var m = document.cookie.match(cookieRe);
     cookie = m ? decodeURIComponent(m[1]) : "";
   } catch (e) {}
   var q = new URLSearchParams(location.search).get("k") || "";
@@ -48,7 +50,7 @@
   window.KODOHON_URL_KEY = fromUrl;
   window.KODOHON_VIEW_KEY = token;
   if (token) {
-    try { localStorage.setItem("kodohon.viewKey", token); } catch (e) {}
+    try { localStorage.setItem(viewKey, token); } catch (e) {}
     if (typeof navigator.standalone === "boolean" && !navigator.standalone) {
       var pin = location.pathname + "?k=" + encodeURIComponent(token) + "#k=" + encodeURIComponent(token);
       if (location.pathname + location.search + location.hash !== pin) {
@@ -182,7 +184,7 @@
   <iframe id="reader-frame" title="聽故事" src="about:blank"></iframe>
 </div>
 <script src="./mark.js?v=8"></script>
-<script src="./gate.js?v=3"></script>
+<script src="./gate.js?v=4"></script>
 <script src="./door.js?v=13"></script>
 </body>
 </html>
