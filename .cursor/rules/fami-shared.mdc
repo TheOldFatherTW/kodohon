@@ -1,0 +1,28 @@
+---
+description: Fami 可分享門面共用政策 — 100% 共用 chrome、禁止第三種卡、兄弟門同步（famibook／kodohon／gamepal）。
+alwaysApply: true
+---
+
+# Fami 共用門面政策（Kodohon）
+
+本庫是 **Fami Pages 門面 + `config.js` VAULT_ORIGIN 保險庫** 的可分享門，與 **famibook**、**gamepal** 同型。
+
+## 必守
+
+1. **能共用的物件 100% 共用** — 返回、確認、找卡、操作卡、齒輪、等待三語、入口／個人頁骨架等，一律對照 skill **`fami-shared-ui`** 詞彙表；不得各做一套。
+2. **不要各做第三種卡** — 需要新樣式須在 fami-shared-ui 定義編號（返回2、確認2…），禁止私製未登記的第三種卡片或按鈕。
+3. **改共用 chrome 時記住兄弟門** — famibook、kodohon、gamepal 應保持同一套殼；改一顆共用件須同步其他可分享門並提高 `?v=`。
+4. **Prefer one FamiGate** — 鑑權走 `gate.js` 的 `window.FamiGate`；無「有必要」三條不得 fork `gate.js`。
+5. **交付走 GitHub Pages** — 同一網址給桌機／iPad／iPhone；禁止把 exe／bat 當產品入口。
+
+## 開工前
+
+- 讀 **`fami-shared-ui`**（詞彙表、活標本 `E:\FamilyPhotos\web`、`D:\Mybook\web`）。
+- 涉及三套表面時再讀 **`ios-home-web`**。
+- 詳細架構與邊界見 repo 根目錄 **`AGENTS.md`**。
+
+## 禁止
+
+- 未經詢問做閹割版個人頁（少封面、少長押、少齒輪圖示）。
+- 為單一專案硬編碼 magic number 或 if 分支污染共用核心。
+- 在共用門之間混用 storage 前綴、origin 或鑑權邏輯（YRoom 等隔離專案除外 — 本庫不在此列）。
