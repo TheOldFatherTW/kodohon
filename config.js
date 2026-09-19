@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://shapes-iowa-der-glossary.trycloudflare.com";
+window.VAULT_ORIGIN = "https://cheers-ton-disco-graphic.trycloudflare.com";
